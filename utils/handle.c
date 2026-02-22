@@ -93,6 +93,8 @@ void handle_interrupt(int semaphore) {
 void handle_run_server(int port) {
     signal(SIGINT, handle_interrupt);
 
+    os_mkdir("storage");
+
     if (socket_init()) {
         printf("\x1b[1;37;41m[Error]\x1b[0m \x1b[1;31minitialize socket failed.\x1b[0m\n");
         return;
@@ -172,7 +174,8 @@ int handle_handshake(Socket c, _TransportProtocolHeader *meta) {
     }
 
     // The server is vulnerable to a path traversal dot-dot-slash attack.
-    char *safe_filename = os_basename(meta->filename);
+    char safe_filename[512];
+    snprintf(safe_filename, sizeof(safe_filename), "./storage/%s", os_basename(meta->filename));
 
     unsigned long long filesize = socket_ntohll(meta->filesize);
     unsigned long long offset = os_filesize(safe_filename);
@@ -202,10 +205,8 @@ void handle_thread_task(void *args) {
     }
 
     // The server is vulnerable to a path traversal dot-dot-slash attack.
-    char *safe_filename = os_basename(meta.filename);
-
-    // char final_path[512];
-    // snprintf(final_path, sizeof(final_path), "./uploads/%s", safe_filename);
+    char safe_filename[512];
+    snprintf(safe_filename, sizeof(safe_filename), "./storage/%s", os_basename(meta.filename));
 
     FILE *fp = fopen(safe_filename, "ab");
     if (!fp) {
