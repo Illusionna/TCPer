@@ -1,7 +1,6 @@
 #include "./utils/handle.h"
 
 
-
 int main(int argc, char *argv[], char *envs[]) {
     if (argc < 2) {
         handle_usage_logo();
@@ -69,7 +68,7 @@ int main(int argc, char *argv[], char *envs[]) {
                     printf("IPv4: %s\nPort: %d\n", host_ipv4, host_port);
                 } else {
                     printf("\x1b[1;37;41m[Error]\x1b[0m \x1b[1;31minvalid \".tcp-config\" file format in \"%s\".\x1b[0m\n", exe_dir);
-                    printf("\x1b[1;32m[Correct Format]\x1b[0m\n127.0.0.1\n9090\n");
+                    printf("\x1b[1;32m[Correct Format]\x1b[0m\n127.0.0.1\n31415\n");
                     return 1;
                 }
             } else {
@@ -94,12 +93,6 @@ int main(int argc, char *argv[], char *envs[]) {
     }
 
     else if (strcmp(argv[1], "send") == 0) {
-        if (os_access(exe_path) != 1) {
-            printf("\x1b[1;37;41m[Error]\x1b[0m \x1b[1;31mconfigure the remote server in client first.\x1b[0m\n");
-            printf(">>> \x1b[1;32m%s config [ipv4:port]\x1b[0m\n", argv[0]);
-            return 1;
-        }
-
         if (argc == 2 || argc > 3) {
             printf("\x1b[1;37;41m[Error]\x1b[0m \x1b[1;31mplease input the file path.\x1b[0m\n");
             printf(">>> \x1b[1;32m%s send [filepath]\x1b[0m\n", argv[0]);
@@ -108,6 +101,14 @@ int main(int argc, char *argv[], char *envs[]) {
             if (os_access(argv[2]) != 1) {
                 printf("\x1b[1;37;43m[Warning]\x1b[0m \x1b[1;33mfile \"%s\" does not exist.\x1b[0m\n", argv[2]);
                 return 1;
+            }
+
+            if (os_access(exe_path) != 1) {
+                char local_ipv4[32];
+                socket_ipv4(local_ipv4, sizeof(local_ipv4));
+                printf("\x1b[1;37;43m[Warning]\x1b[0m \x1b[1;33mno \".tcp-config\" file in \"%s\".\x1b[0m\n", exe_dir);
+                printf("You can configure the remote server default socket in client:\n>>> \x1b[1;32m%s config %s:%d\x1b[0m\n", argv[0], local_ipv4, DEFAULT_PORT);
+                handle_run_client(argv[2], local_ipv4, DEFAULT_PORT);
             } else {
                 char host_ipv4[32];
                 int host_port;
@@ -115,7 +116,7 @@ int main(int argc, char *argv[], char *envs[]) {
                     handle_run_client(argv[2], host_ipv4, host_port);
                 } else {
                     printf("\x1b[1;37;41m[Error]\x1b[0m \x1b[1;31minvalid \".tcp-config\" file format in \"%s\".\x1b[0m\n", exe_dir);
-                    printf("\x1b[1;32m[Correct Format]\x1b[0m\n127.0.0.1\n9090\n");
+                    printf("\x1b[1;32m[Correct Format]\x1b[0m\n127.0.0.1\n31415\n");
                     return 1;
                 }
             }
