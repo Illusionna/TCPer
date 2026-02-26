@@ -12,15 +12,11 @@
     <img src="./figures/Windows.png" width="90%" height="100%">
 </div>
 
-<br>
-
 # 🚀 TCPer 跨操作系统平台传输工具
 
 TCPer 是一款基于 C 语言开发的**轻量级**、**高性能**文件传输工具，它不仅仅是一个简单的 `Socket` 包装器，它更像是一个拥有 TCP 灵魂和火箭速度的数据传送员。
 
 > “像 UDP 一样狂奔，像 TCP 一样靠谱”
-
-<br>
 
 # ✨ 核心特性
 
@@ -36,8 +32,6 @@ TCPer 是一款基于 C 语言开发的**轻量级**、**高性能**文件传输
 
 - 🌐 **跨平台基因**：采用抽象层设计，完美编译且运行于 `Windows`、`macOS` 和 `Linux` 三种操作系统。
 
-<br>
-
 # 🐧 跨平台支持
 
 <div align="center">
@@ -49,8 +43,6 @@ TCPer 是一款基于 C 语言开发的**轻量级**、**高性能**文件传输
 | Linux | POSIX Threads | Berkeley Sockets |
 
 </div>
-
-<br>
 
 # 🛠️ 快速上手
 
@@ -151,8 +143,6 @@ make -j4
 ./tcp send ./Desktop/Illusionna/demo.pdf
 ```
 
-<br>
-
 # 🔍 技术亮点
 
 - 高效 `I/O`：针对大文件优化的 `BUFFER_CAPACITY` 读写，并禁用了 Nagle 算法 `TCP_NODELAY` 以降低延迟。
@@ -162,8 +152,6 @@ make -j4
 - 动态换算：自动将字节转换为 B、KB、MB 或 GB，让进度显示更人性化。
 
 - 异步日志：高性能地记录服务端做出的行为。
-
-<br>
 
 # 开源协议
 
