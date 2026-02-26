@@ -12,15 +12,11 @@
     <img src="./figures/Windows.png" width="90%" height="100%">
 </div>
 
-<br>
-
 # 🚀 TCPer: Cross-Platform File Transmission Tool
 
 TCPer is a **lightweight**, **high-performance** file transmission tool written in C. It is not just a simple `Socket` wrapper; it is a data courier with the soul of TCP and the speed of a rocket.
 
 > "Runs like UDP, stays reliable like TCP"
-
-<br>
 
 # ✨ Features
 
@@ -36,8 +32,6 @@ TCPer is a **lightweight**, **high-performance** file transmission tool written 
 
 - 🌐 **Cross-Platform DNA**: Modular design with abstraction layers, allowing seamless compilation and execution on `Windows`, `macOS`, and `Linux`.
 
-<br>
-
 # 🐧 Cross-Platform Support
 
 <div align="center">
@@ -49,8 +43,6 @@ TCPer is a **lightweight**, **high-performance** file transmission tool written 
 | Linux | POSIX Threads | Berkeley Sockets |
 
 </div>
-
-<br>
 
 # 🛠️ Quick Start
 
@@ -151,8 +143,6 @@ make -j4
 ./tcp send ./Desktop/Illusionna/demo.pdf
 ```
 
-<br>
-
 # 🔍 Technical Highlights
 
 - Optimized `I/O`: Leverages `BUFFER_CAPACITY` for large file read/write operations and disables the Nagle algorithm (`TCP_NODELAY`) to reduce latency.
@@ -162,8 +152,6 @@ make -j4
 - Dynamic Unit Conversion: Automatically converts raw bytes into human-readable B, KB, MB, or GB for the progress display.
 
 - Asynchronous Logging: High-performance logging system to track server-side behaviors.
-
-<br>
 
 # License
 
