@@ -189,6 +189,5 @@ int socket_setopt_timeout(Socket c, int type, double second) {
         int timeout = s * 1000 + ms;
     #endif
     if (type == 0) return socket_setopt(c, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
-    else if (type == 1) return socket_setopt(c, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
-    else return SOCKET_INVALID;
+    else return socket_setopt(c, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 }
