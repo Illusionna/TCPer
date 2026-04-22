@@ -1,16 +1,13 @@
-/**
- * @todo tcp run [port]
- * @todo tcp config --host=38.147.173.246:31415 [--proxy=127.0.0.1:7890]
- * @todo tcp send <path>
- * @todo tcp download <path>
- * @todo tcp list <dir>
- * @todo tcp remove <path>
-**/
-
-
 #include "./utils/app.h"
 #include "./utils/usage.h"
 #include "./utils/parse.h"
+
+
+static void __thread_lock_callback__(int lock, void *ctx) {
+    Mutex *mutex = (Mutex *)ctx;
+    if (lock) mutex_lock(mutex);
+    else mutex_unlock(mutex);
+}
 
 
 int main(int argc, char *argv[], char *envs[]) {
@@ -34,13 +31,24 @@ int main(int argc, char *argv[], char *envs[]) {
             socket_ipv4(ipv4, sizeof(ipv4));
             usage_logo();
             app_start_tips(ipv4, DEFAULT_SERVICE_PORT);
+
+            Mutex mutex;
+            mutex_create(&mutex, 1);
+            async_log_config_thread_lock(__thread_lock_callback__, &mutex);
             async_log_init(8, 32);
-            async_log_setting(1);
             FILE *f = fopen("app.log", "a");
-            async_log_config_write(f);
+            if (f) {
+                async_log_config_write(f);
+                async_log_setting(1);
+            } else {
+                async_log_setting(0);
+                fprintf(stderr, "\x1b[1;37;43m[Warning]\x1b[0m failed to open \"app.log\", fallback to stderr.\n");
+            }
             app_run_service(DEFAULT_SERVICE_PORT);
             async_log_exit(1);
-            fclose(f);
+            mutex_destroy(&mutex);
+
+            if (f) fclose(f);
             app_quit_tips();
         }
 
@@ -49,19 +57,31 @@ int main(int argc, char *argv[], char *envs[]) {
             if (port == 0) {
                 printf("\x1b[1;37;41m[Error]\x1b[0m \"%s\" is not an integer within the range of 1 ~ 65535.\n", argv[2]);
                 return 1;
-            } else {
-                socket_ipv4(ipv4, sizeof(ipv4));
-                usage_logo();
-                app_start_tips(ipv4, DEFAULT_SERVICE_PORT);
-                async_log_init(8, 32);
-                async_log_setting(1);
-                FILE *f = fopen("app.log", "a");
-                async_log_config_write(f);
-                app_run_service(port);
-                async_log_exit(1);
-                fclose(f);
-                app_quit_tips();
             }
+
+            socket_ipv4(ipv4, sizeof(ipv4));
+            usage_logo();
+            app_start_tips(ipv4, port);
+
+            Mutex mutex;
+            mutex_create(&mutex, 1);
+            async_log_config_thread_lock(__thread_lock_callback__, &mutex);
+            async_log_init(8, 32);
+
+            FILE *f = fopen("app.log", "a");
+            if (f) {
+                async_log_config_write(f);
+                async_log_setting(1);
+            } else {
+                async_log_setting(0);
+                fprintf(stderr, "\x1b[1;37;43m[Warning]\x1b[0m failed to open \"app.log\", fallback to stderr.\n");
+            }
+            app_run_service(port);
+            async_log_exit(1);
+            mutex_destroy(&mutex);
+
+            if (f) fclose(f);
+            app_quit_tips();
         }
 
         else {
@@ -78,18 +98,16 @@ int main(int argc, char *argv[], char *envs[]) {
         int proxy_port;
 
         if (argc == 2) {
-            if (os_access(config_path) == 1) {
-                if (parse_config_file(config_path, host_ipv4, &host_port, proxy_ipv4, &proxy_port) == 0) {
-                    printf("host ipv4 = %s\nhost port = %d\nproxy ipv4 = %s\nproxy port = %d\n", host_ipv4, host_port, proxy_ipv4, proxy_port);
-                } else {
-                    printf("\x1b[1;37;41m[Error]\x1b[0m failed to read file \"%s\".\n", config_path);
-                    return 1;
-                }
-            } else {
+            if (os_access(config_path) != 1) {
                 printf("\x1b[1;37;41m[Error]\x1b[0m no \"%s\" configuration file exists.\n", config_path);
                 printf("\n * \x1b[90m(client)\x1b[0m %s config [host] [proxy]\n\t>>> \x1b[1;32m%s config --host=8.8.8.8:%d --proxy=127.0.0.1:7890\x1b[0m\n", argv[0], argv[0], DEFAULT_SERVICE_PORT);
                 return 1;
             }
+            if (parse_config_file(config_path, host_ipv4, &host_port, proxy_ipv4, &proxy_port) == 1) {
+                printf("\x1b[1;37;41m[Error]\x1b[0m failed to read file \"%s\".\n", config_path);
+                return 1;
+            }
+            printf("host ipv4 = %s\nhost port = %d\nproxy ipv4 = %s\nproxy port = %d\n", host_ipv4, host_port, proxy_ipv4, proxy_port);
         }
 
         else if (argc == 3 || argc == 4) {
@@ -115,47 +133,52 @@ int main(int argc, char *argv[], char *envs[]) {
     }
 
     else if (strcmp(argv[1], "send") == 0) {
-        char host_ipv4[32];
-        int host_port;
-        char proxy_ipv4[32];
-        int proxy_port;
-
         if (argc == 2 || argc > 3) {
             printf("\x1b[1;37;41m[Error]\x1b[0m no such file or directory.\n");
             printf("\n * \x1b[90m(client)\x1b[0m %s send <path>\n\t>>> \x1b[1;32m%s send \"A:\\Illusionna\\Desktop\\My PDF\\demo.pdf\"\x1b[0m\n", argv[0], argv[0]);
             return 1;
-        } else {
+        }
+
+        else {
+            char host_ipv4[32];
+            int host_port;
+            char proxy_ipv4[32];
+            int proxy_port;
+
             if (os_access(argv[2]) != 1) {
                 printf("\x1b[1;37;43m[Warning]\x1b[0m no \"%s\" such file or directory.\n", argv[2]);
                 return 1;
             }
+
             socket_ipv4(ipv4, sizeof(ipv4));
+
             if (os_access(config_path) != 1) {
                 printf("\x1b[1;37;43m[Warning]\x1b[0m no \"%s\" configuration file exists.", config_path);
                 printf("\n\nHi %s, attention! You can configure the remote server socket in client:\n", username);
                 printf("\n * \x1b[90m(client)\x1b[0m %s config [host] [proxy]\n\t>>> \x1b[1;32m%s config --host=%s:%d --proxy=127.0.0.1:7890\x1b[0m\n\n", argv[0], argv[0], ipv4, DEFAULT_SERVICE_PORT);
                 app_client_send(argv[2], ipv4, DEFAULT_SERVICE_PORT, NULL, 0);
-            } else {
-                if (parse_config_file(config_path, host_ipv4, &host_port, proxy_ipv4, &proxy_port) == 0) {
-                    if (!socket_valid_ipv4(host_ipv4) || host_port <= 0 || host_port > 65535) {
-                        printf("\x1b[1;37;41m[Error]\x1b[0m invalid host socket config in \"%s\".\n", config_path);
-                        printf("\n * \x1b[90m(client)\x1b[0m %s config [host] [proxy]\n\t>>> \x1b[1;32m%s config --host=%s:%d --proxy=127.0.0.1:7890\x1b[0m\n", argv[0], argv[0], ipv4, DEFAULT_SERVICE_PORT);
-                        return 1;
-                    }
-                    if (strcmp(proxy_ipv4, "") == 0) {
-                        app_client_send(argv[2], host_ipv4, host_port, NULL, 0);
-                    } else {
-                        if (!socket_valid_ipv4(proxy_ipv4) || proxy_port <= 0 || proxy_port > 65535) {
-                            printf("\x1b[1;37;41m[Error]\x1b[0m invalid proxy socket config in \"%s\".\n", config_path);
-                            printf("\n * \x1b[90m(client)\x1b[0m %s config [host] [proxy]\n\t>>> \x1b[1;32m%s config --host=%s:%d --proxy=127.0.0.1:7890\x1b[0m\n", argv[0], argv[0], ipv4, DEFAULT_SERVICE_PORT);
-                            return 1;
-                        }
-                        app_client_send(argv[2], host_ipv4, host_port, proxy_ipv4, proxy_port);
-                    }
-                } else {
+            }
+
+            else {
+                if (parse_config_file(config_path, host_ipv4, &host_port, proxy_ipv4, &proxy_port) == 1) {
                     printf("\x1b[1;37;41m[Error]\x1b[0m failed to read file \"%s\".\n", config_path);
                     return 1;
                 }
+
+                if (!socket_valid_ipv4(host_ipv4) || host_port <= 0 || host_port > 65535) {
+                    printf("\x1b[1;37;41m[Error]\x1b[0m invalid host socket config in \"%s\".\n", config_path);
+                    printf("\n * \x1b[90m(client)\x1b[0m %s config [host] [proxy]\n\t>>> \x1b[1;32m%s config --host=%s:%d --proxy=127.0.0.1:7890\x1b[0m\n", argv[0], argv[0], ipv4, DEFAULT_SERVICE_PORT);
+                    return 1;
+                }
+
+                if (strcmp(proxy_ipv4, "") != 0) {
+                    if (!socket_valid_ipv4(proxy_ipv4) || proxy_port <= 0 || proxy_port > 65535) {
+                        printf("\x1b[1;37;41m[Error]\x1b[0m invalid proxy socket config in \"%s\".\n", config_path);
+                        printf("\n * \x1b[90m(client)\x1b[0m %s config [host] [proxy]\n\t>>> \x1b[1;32m%s config --host=%s:%d --proxy=127.0.0.1:7890\x1b[0m\n", argv[0], argv[0], ipv4, DEFAULT_SERVICE_PORT);
+                        return 1;
+                    }
+                    app_client_send(argv[2], host_ipv4, host_port, proxy_ipv4, proxy_port);
+                } else app_client_send(argv[2], host_ipv4, host_port, NULL, 0);
             }
         }
     }
@@ -168,7 +191,32 @@ int main(int argc, char *argv[], char *envs[]) {
         }
 
         else {
+            char host_ipv4[32];
+            int host_port;
+            char proxy_ipv4[32];
+            int proxy_port;
 
+            socket_ipv4(ipv4, sizeof(ipv4));
+
+            if (os_access(config_path) != 1) {
+                printf("\x1b[1;37;43m[Warning]\x1b[0m no \"%s\" configuration file exists.", config_path);
+                printf("\n\nHi %s, attention! You can configure the remote server socket in client:\n", username);
+                printf("\n * \x1b[90m(client)\x1b[0m %s config [host] [proxy]\n\t>>> \x1b[1;32m%s config --host=%s:%d --proxy=127.0.0.1:7890\x1b[0m\n\n", argv[0], argv[0], ipv4, DEFAULT_SERVICE_PORT);
+                app_client_list(argv[2], ipv4, DEFAULT_SERVICE_PORT);
+            }
+
+            else {
+                if (parse_config_file(config_path, host_ipv4, &host_port, proxy_ipv4, &proxy_port) != 0) {
+                    printf("\x1b[1;37;41m[Error]\x1b[0m failed to read file \"%s\".\n", config_path);
+                    return 1;
+                }
+                if (!socket_valid_ipv4(host_ipv4) || host_port <= 0 || host_port > 65535) {
+                    printf("\x1b[1;37;41m[Error]\x1b[0m invalid host socket config in \"%s\".\n", config_path);
+                    printf("\n * \x1b[90m(client)\x1b[0m %s config [host] [proxy]\n\t>>> \x1b[1;32m%s config --host=%s:%d --proxy=127.0.0.1:7890\x1b[0m\n", argv[0], argv[0], ipv4, DEFAULT_SERVICE_PORT);
+                    return 1;
+                }
+                app_client_list(argv[2], host_ipv4, host_port);
+            }
         }
     }
 
@@ -180,7 +228,41 @@ int main(int argc, char *argv[], char *envs[]) {
         }
 
         else {
+            char host_ipv4[32];
+            int host_port;
+            char proxy_ipv4[32];
+            int proxy_port;
 
+            socket_ipv4(ipv4, sizeof(ipv4));
+
+            if (os_access(config_path) != 1) {
+                printf("\x1b[1;37;43m[Warning]\x1b[0m no \"%s\" configuration file exists.", config_path);
+                printf("\n\nHi %s, attention! You can configure the remote server socket in client:\n", username);
+                printf("\n * \x1b[90m(client)\x1b[0m %s config [host] [proxy]\n\t>>> \x1b[1;32m%s config --host=%s:%d --proxy=127.0.0.1:7890\x1b[0m\n\n", argv[0], argv[0], ipv4, DEFAULT_SERVICE_PORT);
+                app_client_download(argv[2], ".", ipv4, DEFAULT_SERVICE_PORT, NULL, 0);
+            }
+
+            else {
+                if (parse_config_file(config_path, host_ipv4, &host_port, proxy_ipv4, &proxy_port) != 0) {
+                    printf("\x1b[1;37;41m[Error]\x1b[0m failed to read file \"%s\".\n", config_path);
+                    return 1;
+                }
+
+                if (!socket_valid_ipv4(host_ipv4) || host_port <= 0 || host_port > 65535) {
+                    printf("\x1b[1;37;41m[Error]\x1b[0m invalid host socket config in \"%s\".\n", config_path);
+                    printf("\n * \x1b[90m(client)\x1b[0m %s config [host] [proxy]\n\t>>> \x1b[1;32m%s config --host=%s:%d --proxy=127.0.0.1:7890\x1b[0m\n", argv[0], argv[0], ipv4, DEFAULT_SERVICE_PORT);
+                    return 1;
+                }
+
+                if (strcmp(proxy_ipv4, "") != 0) {
+                    if (!socket_valid_ipv4(proxy_ipv4) || proxy_port <= 0 || proxy_port > 65535) {
+                        printf("\x1b[1;37;41m[Error]\x1b[0m invalid proxy socket config in \"%s\".\n", config_path);
+                        printf("\n * \x1b[90m(client)\x1b[0m %s config [host] [proxy]\n\t>>> \x1b[1;32m%s config --host=%s:%d --proxy=127.0.0.1:7890\x1b[0m\n", argv[0], argv[0], ipv4, DEFAULT_SERVICE_PORT);
+                        return 1;
+                    }
+                    app_client_download(argv[2], ".", host_ipv4, host_port, proxy_ipv4, proxy_port);
+                } else app_client_download(argv[2], ".", host_ipv4, host_port, NULL, 0);
+            }
         }
     }
 
@@ -192,7 +274,32 @@ int main(int argc, char *argv[], char *envs[]) {
         }
 
         else {
+            char host_ipv4[32];
+            int host_port;
+            char proxy_ipv4[32];
+            int proxy_port;
 
+            socket_ipv4(ipv4, sizeof(ipv4));
+
+            if (os_access(config_path) != 1) {
+                printf("\x1b[1;37;43m[Warning]\x1b[0m no \"%s\" configuration file exists.", config_path);
+                printf("\n\nHi %s, attention! You can configure the remote server socket in client:\n", username);
+                printf("\n * \x1b[90m(client)\x1b[0m %s config [host] [proxy]\n\t>>> \x1b[1;32m%s config --host=%s:%d --proxy=127.0.0.1:7890\x1b[0m\n\n", argv[0], argv[0], ipv4, DEFAULT_SERVICE_PORT);
+                app_client_remove(argv[2], ipv4, DEFAULT_SERVICE_PORT);
+            }
+
+            else {
+                if (parse_config_file(config_path, host_ipv4, &host_port, proxy_ipv4, &proxy_port) != 0) {
+                    printf("\x1b[1;37;41m[Error]\x1b[0m failed to read file \"%s\".\n", config_path);
+                    return 1;
+                }
+                if (!socket_valid_ipv4(host_ipv4) || host_port <= 0 || host_port > 65535) {
+                    printf("\x1b[1;37;41m[Error]\x1b[0m invalid host socket config in \"%s\".\n", config_path);
+                    printf("\n * \x1b[90m(client)\x1b[0m %s config [host] [proxy]\n\t>>> \x1b[1;32m%s config --host=%s:%d --proxy=127.0.0.1:7890\x1b[0m\n", argv[0], argv[0], ipv4, DEFAULT_SERVICE_PORT);
+                    return 1;
+                }
+                app_client_remove(argv[2], host_ipv4, host_port);
+            }
         }
     }
 
